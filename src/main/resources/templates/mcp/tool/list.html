@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP工具管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background-color: #f8f9fa;
+        }
+        .main-content {
+            min-height: calc(100vh - 56px);
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-gear-fill"></i> MCP管理系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/mcp/tools">工具管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/mcp/markets">市场管理</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 左侧菜单 -->
+            <div class="col-md-2 sidebar p-3">
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item mb-2">
+                        <a class="nav-link active" href="/mcp/tools">
+                            <i class="bi bi-tools"></i> MCP工具管理
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="/mcp/markets">
+                            <i class="bi bi-shop"></i> MCP市场管理
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="col-md-10 main-content p-4">
+                <!-- 消息提示 -->
+                <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> <span th:text="${success}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> <span th:text="${error}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-tools"></i> MCP工具管理</h2>
+                    <a href="/mcp/tools/add" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> 添加工具
+                    </a>
+                </div>
+
+                <!-- 搜索和筛选 -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form method="get" action="/mcp/tools" class="row g-3">
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" name="keyword" th:value="${keyword}" placeholder="搜索工具名称">
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" name="type">
+                                    <option value="">全部类型</option>
+                                    <option value="LOCAL" th:selected="${type == 'LOCAL'}">本地</option>
+                                    <option value="REMOTE" th:selected="${type == 'REMOTE'}">远程</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" name="status">
+                                    <option value="">全部状态</option>
+                                    <option value="ENABLED" th:selected="${status == 'ENABLED'}">启用</option>
+                                    <option value="DISABLED" th:selected="${status == 'DISABLED'}">禁用</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-search"></i> 搜索
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="/mcp/tools" class="btn btn-outline-secondary w-100">重置</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 工具列表 -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="50">
+                                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                        </th>
+                                        <th>ID</th>
+                                        <th>工具名称</th>
+                                        <th>类型</th>
+                                        <th>状态</th>
+                                        <th>描述</th>
+                                        <th>创建时间</th>
+                                        <th width="200">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:if="${tools == null || tools.isEmpty()}">
+                                        <td colspan="8" class="text-center text-muted">暂无数据</td>
+                                    </tr>
+                                    <tr th:each="tool : ${tools}">
+                                        <td>
+                                            <input type="checkbox" class="tool-checkbox" th:value="${tool.id}">
+                                        </td>
+                                        <td th:text="${tool.id}"></td>
+                                        <td th:text="${tool.name}"></td>
+                                        <td>
+                                            <span class="badge" th:classappend="${tool.type == 'LOCAL'} ? 'bg-success' : 'bg-info'" th:text="${tool.type == 'LOCAL'} ? '本地' : '远程'"></span>
+                                        </td>
+                                        <td>
+                                            <span class="badge" th:classappend="${tool.status == 'ENABLED'} ? 'bg-success' : 'bg-secondary'" th:text="${tool.status == 'ENABLED'} ? '启用' : '禁用'"></span>
+                                        </td>
+                                        <td th:text="${tool.description != null ? tool.description : '-'}"></td>
+                                        <td th:text="${#temporals.format(tool.createTime, 'yyyy-MM-dd HH:mm')}"></td>
+                                        <td>
+                                            <button th:if="${tool.type == 'LOCAL' && tool.status == 'ENABLED'}" 
+                                                    th:onclick="'testTool(' + ${tool.id} + ')'" 
+                                                    class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-play-circle"></i> 测试
+                                            </button>
+                                            <a th:href="@{/mcp/tools/edit/{id}(id=${tool.id})}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> 编辑
+                                            </a>
+                                            <form th:action="@{/mcp/tools/status/{id}(id=${tool.id})}" method="post" style="display: inline;">
+                                                <input type="hidden" name="status" th:value="${tool.status == 'ENABLED'} ? 'DISABLED' : 'ENABLED'">
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" th:text="${tool.status == 'ENABLED'} ? '禁用' : '启用'"></button>
+                                            </form>
+                                            <form th:action="@{/mcp/tools/delete/{id}(id=${tool.id})}" method="post" style="display: inline;" onsubmit="return confirm('确定要删除吗？')">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-trash"></i> 删除
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 批量操作 -->
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-danger" onclick="batchDelete()">
+                                <i class="bi bi-trash"></i> 批量删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 测试工具模态框 -->
+    <div class="modal fade" id="testToolModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">测试工具</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="toolInfo" class="mb-3">
+                        <p><strong>工具名称：</strong><span id="toolName"></span></p>
+                        <p><strong>工具描述：</strong><span id="toolDescription"></span></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">参数：</label>
+                        <div id="paramsForm">
+                            <!-- 动态生成的参数表单 -->
+                        </div>
+                        <div id="paramsJsonContainer" style="display: none;">
+                            <label class="form-label">参数（JSON 格式）：</label>
+                            <textarea id="toolParams" class="form-control" rows="5" placeholder='例如：{"format": "datetime"}'></textarea>
+                            <small class="form-text text-muted">输入 JSON 格式的参数，如果工具不需要参数可以留空</small>
+                        </div>
+                    </div>
+                    <div id="testResult" style="display: none;">
+                        <h6>测试结果：</h6>
+                        <pre id="resultContent" class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" onclick="executeTest()">
+                        <i class="bi bi-play-circle"></i> 执行测试
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script>
+        let currentToolId = null;
+        const testToolModal = new bootstrap.Modal(document.getElementById('testToolModal'));
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.tool-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        function batchDelete() {
+            const checked = Array.from(document.querySelectorAll('.tool-checkbox:checked')).map(cb => cb.value);
+            if (checked.length === 0) {
+                alert('请选择要删除的工具');
+                return;
+            }
+            if (confirm('确定要删除选中的 ' + checked.length + ' 个工具吗？')) {
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/mcp/tools/delete/batch';
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids';
+                input.value = checked.join(',');
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function testTool(toolId) {
+            currentToolId = toolId;
+            // 获取工具信息
+            fetch('/api/mcp/tools/info/' + toolId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('toolName').textContent = data.tool.name;
+                        document.getElementById('toolDescription').textContent = data.tool.description || '无描述';
+                        document.getElementById('testResult').style.display = 'none';
+                        
+                        // 生成参数表单
+                        const paramsForm = document.getElementById('paramsForm');
+                        const paramsJsonContainer = document.getElementById('paramsJsonContainer');
+                        
+                        if (data.tool.parameters && data.tool.parameters.length > 0) {
+                            // 有参数信息，生成表单
+                            paramsForm.innerHTML = '';
+                            paramsForm.style.display = 'block';
+                            paramsJsonContainer.style.display = 'none';
+                            
+                            data.tool.parameters.forEach((param, index) => {
+                                const formGroup = document.createElement('div');
+                                formGroup.className = 'mb-3';
+                                
+                                const label = document.createElement('label');
+                                label.className = 'form-label';
+                                label.textContent = param.name + (param.required ? ' *' : '');
+                                label.setAttribute('for', 'param_' + index);
+                                
+                                const input = document.createElement('input');
+                                input.type = getInputType(param.type);
+                                input.className = 'form-control';
+                                input.id = 'param_' + index;
+                                input.name = param.name;
+                                input.placeholder = param.description || '';
+                                if (!param.required) {
+                                    input.placeholder += ' (可选)';
+                                }
+                                
+                                const helpText = document.createElement('small');
+                                helpText.className = 'form-text text-muted';
+                                helpText.textContent = param.type + (param.description ? ' - ' + param.description : '');
+                                
+                                formGroup.appendChild(label);
+                                formGroup.appendChild(input);
+                                formGroup.appendChild(helpText);
+                                paramsForm.appendChild(formGroup);
+                            });
+                        } else {
+                            // 没有参数信息，使用 JSON 输入
+                            paramsForm.style.display = 'none';
+                            paramsJsonContainer.style.display = 'block';
+                            document.getElementById('toolParams').value = '';
+                        }
+                        
+                        testToolModal.show();
+                    } else {
+                        alert('获取工具信息失败: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('获取工具信息失败');
+                });
+        }
+
+        function getInputType(paramType) {
+            const type = paramType.toLowerCase();
+            if (type.includes('int') || type.includes('long') || type.includes('double') || type.includes('float') || type.includes('number')) {
+                return 'number';
+            }
+            if (type.includes('bool')) {
+                return 'checkbox';
+            }
+            return 'text';
+        }
+
+        function executeTest() {
+            if (!currentToolId) {
+                alert('工具ID不存在');
+                return;
+            }
+
+            let params = {};
+            
+            // 检查是否有参数表单
+            const paramsForm = document.getElementById('paramsForm');
+            const paramsJsonContainer = document.getElementById('paramsJsonContainer');
+            
+            if (paramsForm.style.display !== 'none' && paramsForm.children.length > 0) {
+                // 使用表单输入
+                const inputs = paramsForm.querySelectorAll('input');
+                inputs.forEach(input => {
+                    if (input.type === 'checkbox') {
+                        params[input.name] = input.checked;
+                    } else if (input.type === 'number') {
+                        const value = input.value.trim();
+                        if (value !== '') {
+                            params[input.name] = parseFloat(value);
+                        }
+                    } else {
+                        const value = input.value.trim();
+                        if (value !== '') {
+                            params[input.name] = value;
+                        }
+                    }
+                });
+            } else {
+                // 使用 JSON 输入
+                const paramsText = document.getElementById('toolParams').value.trim();
+                if (paramsText) {
+                    try {
+                        params = JSON.parse(paramsText);
+                    } catch (e) {
+                        alert('参数格式错误，请输入有效的 JSON 格式');
+                        return;
+                    }
+                }
+            }
+
+            // 显示加载状态
+            const executeBtn = event.target;
+            const originalText = executeBtn.innerHTML;
+            executeBtn.disabled = true;
+            executeBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 执行中...';
+
+            // 调用测试接口
+            fetch('/api/mcp/tools/test/' + currentToolId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    executeBtn.disabled = false;
+                    executeBtn.innerHTML = originalText;
+                    
+                    const resultDiv = document.getElementById('testResult');
+                    const resultContent = document.getElementById('resultContent');
+                    
+                    if (data.success) {
+                        resultContent.textContent = JSON.stringify(data, null, 2);
+                        resultContent.className = 'bg-light p-3 rounded text-success';
+                    } else {
+                        resultContent.textContent = JSON.stringify(data, null, 2);
+                        resultContent.className = 'bg-light p-3 rounded text-danger';
+                    }
+                    
+                    resultDiv.style.display = 'block';
+                    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    executeBtn.disabled = false;
+                    executeBtn.innerHTML = originalText;
+                    alert('测试失败: ' + error.message);
+                });
+        }
+    </script>
+</body>
+</html>

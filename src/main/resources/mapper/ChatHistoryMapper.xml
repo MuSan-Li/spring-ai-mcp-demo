@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.saa.demo.mapper.ChatHistoryMapper">
+
+    <!-- 根据会话ID查询历史记录，按创建时间升序排列 -->
+    <select id="selectBySessionIdOrderByCreateTimeAsc" resultType="cn.saa.demo.entity.ChatHistory">
+        SELECT id, session_id, user_message, ai_response, create_time, update_time
+        FROM chat_history
+        WHERE session_id = #{sessionId}
+        ORDER BY create_time ASC
+    </select>
+
+    <!-- 根据会话ID查询最近N条历史记录 -->
+    <select id="selectRecentBySessionId" resultType="cn.saa.demo.entity.ChatHistory">
+        SELECT id, session_id, user_message, ai_response, create_time, update_time
+        FROM chat_history
+        WHERE session_id = #{sessionId}
+        ORDER BY create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 删除指定会话的所有历史记录 -->
+    <delete id="deleteBySessionId">
+        DELETE FROM chat_history
+        WHERE session_id = #{sessionId}
+    </delete>
+
+</mapper>
+
