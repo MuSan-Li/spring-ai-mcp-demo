@@ -3,6 +3,7 @@ package cn.saa.demo.controller;
 import cn.saa.demo.entity.McpToolData;
 import cn.saa.demo.service.McpToolInvokeService;
 import cn.saa.demo.service.McpToolService;
+import cn.saa.demo.service.RemoteMcpToolInvokeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,9 @@ public class McpToolTestController {
 
     @Resource
     private McpToolInvokeService mcpToolInvokeService;
+
+    @Resource
+    private RemoteMcpToolInvokeService remoteMcpToolInvokeService;
 
     /**
      * 测试工具调用
@@ -60,18 +64,30 @@ public class McpToolTestController {
                 return ResponseEntity.badRequest().body(result);
             }
 
-            // 检查工具是否已注册
-            if (!mcpToolInvokeService.hasTool(tool.getName())) {
-                result.put("success", false);
-                result.put("error", "工具未注册到 MCP 系统，请确保工具类已正确加载");
-                return ResponseEntity.badRequest().body(result);
-            }
-
-            // 直接调用 MCP 工具
+            // 根据工具类型选择调用方式
             long startTime = System.currentTimeMillis();
             Object toolResult;
             try {
-                toolResult = mcpToolInvokeService.invokeTool(tool.getName(), params);
+                if (McpToolData.Type.REMOTE.equals(tool.getType())) {
+                    // 远程工具调用
+                    if (!remoteMcpToolInvokeService.isToolAvailable(tool)) {
+                        result.put("success", false);
+                        result.put("error", "远程工具不可用，请检查连接配置");
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                    // 注意：这里需要知道远程工具的实际工具名称
+                    // 如果配置中有工具名称，使用配置中的；否则使用工具名称
+                    String remoteToolName = tool.getName();
+                    toolResult = remoteMcpToolInvokeService.invokeRemoteTool(tool, remoteToolName, params);
+                } else {
+                    // 本地工具调用
+                    if (!mcpToolInvokeService.hasTool(tool.getName())) {
+                        result.put("success", false);
+                        result.put("error", "工具未注册到 MCP 系统，请确保工具类已正确加载");
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                    toolResult = mcpToolInvokeService.invokeTool(tool.getName(), params);
+                }
                 long duration = System.currentTimeMillis() - startTime;
 
                 // 格式化返回结果

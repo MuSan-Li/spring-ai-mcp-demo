@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * MCP 服务器列表响应实体
@@ -14,26 +13,11 @@ import java.util.Map;
 @Data
 public class McpServerListResponse {
     
-    @JsonProperty("success")
-    private Boolean success;
+    @JsonProperty("total")
+    private Integer total;
     
-    @JsonProperty("message")
-    private String message;
-    
-    @JsonProperty("request_id")
-    private String requestId;
-    
-    @JsonProperty("data")
-    private McpServerListData data;
-    
-    @Data
-    public static class McpServerListData {
-        @JsonProperty("mcp_server_list")
-        private List<McpServerInfo> mcpServerList;
-        
-        @JsonProperty("total_count")
-        private Integer totalCount;
-    }
+    @JsonProperty("servers")
+    private List<McpServerInfo> servers;
     
     @Data
     public static class McpServerInfo {
@@ -43,37 +27,40 @@ public class McpServerListResponse {
         @JsonProperty("name")
         private String name;
         
-        @JsonProperty("chinese_name")
-        private String chineseName;
+        @JsonProperty("icon")
+        private String icon;
+        
+        @JsonProperty("title")
+        private String title;
         
         @JsonProperty("description")
         private String description;
         
-        @JsonProperty("publisher")
-        private String publisher;
+        @JsonProperty("author")
+        private String author;
         
-        @JsonProperty("logo_url")
-        private String logoUrl;
+        @JsonProperty("github_url")
+        private String githubUrl;
         
-        @JsonProperty("categories")
-        private List<String> categories;
+        @JsonProperty("orderBy")
+        private Integer orderBy;
         
-        @JsonProperty("tags")
-        private List<String> tags;
+        @JsonProperty("score")
+        private String score;
         
-        @JsonProperty("view_count")
-        private Integer viewCount;
-        
-        @JsonProperty("locales")
-        private Map<String, LocaleInfo> locales;
+        @JsonProperty("category")
+        private CategoryInfo category;
         
         @Data
-        public static class LocaleInfo {
+        public static class CategoryInfo {
+            @JsonProperty("id")
+            private String id;
+            
             @JsonProperty("name")
             private String name;
             
-            @JsonProperty("description")
-            private String description;
+            @JsonProperty("label")
+            private String label;
         }
     }
 }

@@ -7,21 +7,20 @@ import cn.saa.demo.entity.McpToolData;
 import cn.saa.demo.mapper.McpMarketMapper;
 import cn.saa.demo.mapper.McpMarketToolMapper;
 import cn.saa.demo.service.McpMarketService;
+import cn.saa.demo.service.McpToolRegistryService;
 import cn.saa.demo.service.McpToolService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import jakarta.annotation.Resource;
-import org.springframework.context.ApplicationContext;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +32,7 @@ import java.util.Random;
  *
  * @author Administrator
  */
+@Slf4j
 @Service
 public class McpMarketServiceImpl extends ServiceImpl<McpMarketMapper, McpMarket> implements McpMarketService {
 
@@ -113,7 +113,7 @@ public class McpMarketServiceImpl extends ServiceImpl<McpMarketMapper, McpMarket
             String url = market.getUrl();
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+            // GET 请求不需要设置 Content-Type
 
             // 如果有认证配置，添加到请求头
             if (market.getAuthConfig() != null && !market.getAuthConfig().isEmpty()) {
@@ -130,136 +130,133 @@ public class McpMarketServiceImpl extends ServiceImpl<McpMarketMapper, McpMarket
             }
 
             // 分页获取所有数据，循环请求直到返回为空
-            int pageSize = 20; // 每页大小
+            int pageSize = 40; // 每页大小
             int pageNumber = 1;
             Random random = new Random();
             boolean hasMore = true;
 
             while (hasMore) {
-                // 构建请求体
-                String requestBody = String.format("""
-                        {
-                          "page_number": %d,
-                          "page_size": %d,
-                          "search": ""
-                        }""", pageNumber, pageSize);
+                // 构建带查询参数的 URL
+                // https://mcpservers.cn/api/servers/list?tab=all&search=&page=1&pageSize=40&lang=zh
+                String requestUrl = UriComponentsBuilder.fromUriString(url)
+                        .queryParam("tab", "all")
+                        .queryParam("search", "")
+                        .queryParam("page", pageNumber)
+                        .queryParam("pageSize", pageSize)
+                        .queryParam("lang", "zh")
+                        .toUriString();
 
-                HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
-                
-                // 使用 PUT 请求
-                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class);
+                // GET 请求不需要请求体，只传递 headers
+                HttpEntity<String> entity = new HttpEntity<>(headers);
 
-                if (response.getStatusCode().is2xxSuccessful()) {
-                    // 解析响应
-                    McpServerListResponse responseData = objectMapper.readValue(
-                            response.getBody(), 
-                            McpServerListResponse.class
-                    );
+                // 使用 GET 请求
+                ResponseEntity<String> response = restTemplate.exchange(requestUrl, HttpMethod.GET, entity, String.class);
 
-                    if (responseData.getSuccess() != null && responseData.getSuccess() 
-                        && responseData.getData() != null 
-                        && responseData.getData().getMcpServerList() != null) {
-                        
-                        List<McpServerListResponse.McpServerInfo> serverList = 
-                                responseData.getData().getMcpServerList();
-                        
-                        // 如果返回的列表为空，说明没有更多数据了
-                        if (serverList.isEmpty()) {
-                            break;
-                        }
-
-                        // 保存或更新当前页的工具
-                        for (McpServerListResponse.McpServerInfo serverInfo : serverList) {
-                            // 获取服务器ID作为唯一标识
-                            String serverId = serverInfo.getId();
-                            if (serverId == null || serverId.isEmpty()) {
-                                continue; // 跳过没有ID的服务器
-                            }
-                            
-                            // 检查是否已存在（根据 marketId 和 serverId）
-                            McpMarketTool existingTool = marketToolMapper.selectByMarketIdAndServerId(marketId, serverId);
-                            
-                            // 获取中文名称或英文名称
-                            String toolName = serverInfo.getChineseName() != null && !serverInfo.getChineseName().isEmpty()
-                                    ? serverInfo.getChineseName()
-                                    : serverInfo.getName();
-                            
-                            // 获取描述（优先中文）
-                            String description = serverInfo.getDescription();
-                            if (serverInfo.getLocales() != null && serverInfo.getLocales().containsKey("zh")) {
-                                McpServerListResponse.McpServerInfo.LocaleInfo zhLocale = 
-                                        serverInfo.getLocales().get("zh");
-                                if (zhLocale != null && zhLocale.getDescription() != null) {
-                                    description = zhLocale.getDescription();
-                                }
-                            }
-                            
-                            // 构建完整的元数据
-                            Map<String, Object> toolMetadata = new HashMap<>();
-                            toolMetadata.put("id", serverId);
-                            toolMetadata.put("name", serverInfo.getName() != null ? serverInfo.getName() : "");
-                            toolMetadata.put("chinese_name", serverInfo.getChineseName() != null ? serverInfo.getChineseName() : "");
-                            toolMetadata.put("description", description != null ? description : "");
-                            toolMetadata.put("publisher", serverInfo.getPublisher() != null ? serverInfo.getPublisher() : "");
-                            toolMetadata.put("logo_url", serverInfo.getLogoUrl() != null ? serverInfo.getLogoUrl() : "");
-                            toolMetadata.put("categories", serverInfo.getCategories() != null ? serverInfo.getCategories() : List.of());
-                            toolMetadata.put("tags", serverInfo.getTags() != null ? serverInfo.getTags() : List.of());
-                            toolMetadata.put("view_count", serverInfo.getViewCount() != null ? serverInfo.getViewCount() : 0);
-
-                            String metadataJson = objectMapper.writeValueAsString(toolMetadata);
-                            
-                            if (existingTool != null) {
-                                // 更新已存在的工具（保留加载状态）
-                                existingTool.setToolName(toolName);
-                                existingTool.setToolDescription(description);
-                                existingTool.setToolMetadata(metadataJson);
-                                // 不更新 isLoaded 和 localToolId，保留原有状态
-                                marketToolMapper.updateById(existingTool);
-                            } else {
-                                // 添加新工具
-                                McpMarketTool tool = McpMarketTool.builder()
-                                        .marketId(marketId)
-                                        .toolName(toolName)
-                                        .toolDescription(description)
-                                        .toolVersion(null) // API 响应中没有版本信息
-                                        .toolMetadata(metadataJson)
-                                        .isLoaded(false)
-                                        .createTime(LocalDateTime.now())
-                                        .build();
-                                marketToolMapper.insert(tool);
-                            }
-                        }
-
-                        // 判断是否还有更多数据
-                        int currentPageSize = serverList.size();
-                        if (currentPageSize < pageSize) {
-                            // 返回的数据少于每页大小，说明已经是最后一页了
-                            hasMore = false;
-                        } else {
-                            // 还有更多数据，继续请求下一页
-                            pageNumber++;
-                            // 随机等待10-20秒
-                            int waitSeconds = 10 + random.nextInt(11); // 10-20秒
-                            try {
-                                Thread.sleep(waitSeconds * 1000L);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                break;
-                            }
-                        }
-                    } else {
-                        // 响应不成功或数据为空，停止请求
-                        hasMore = false;
-                    }
-                } else {
+                if (!response.getStatusCode().is2xxSuccessful()) {
                     // 请求失败，停止请求
+                    break;
+                }
+                // 解析响应
+                McpServerListResponse responseData = objectMapper.readValue(
+                        response.getBody(),
+                        McpServerListResponse.class
+                );
+
+                if (responseData == null || responseData.getServers() == null) {
+                    // 响应不成功或数据为空，停止请求
+                    break;
+                }
+                List<McpServerListResponse.McpServerInfo> serverList = responseData.getServers();
+
+                // 如果返回的列表为空，说明没有更多数据了
+                if (serverList.isEmpty()) {
+                    break;
+                }
+
+                // 保存或更新当前页的工具
+                for (McpServerListResponse.McpServerInfo serverInfo : serverList) {
+                    // 获取服务器ID作为唯一标识
+                    String serverId = serverInfo.getId();
+                    if (serverId == null || serverId.isEmpty()) {
+                        continue; // 跳过没有ID的服务器
+                    }
+
+                    // 检查是否已存在（根据 marketId 和 serverId）
+                    McpMarketTool existingTool = marketToolMapper.selectByMarketIdAndServerId(marketId, serverId);
+
+                    // 获取工具名称（优先使用 title，其次使用 name）
+                    String toolName = serverInfo.getTitle() != null && !serverInfo.getTitle().isEmpty()
+                            ? serverInfo.getTitle()
+                            : (serverInfo.getName() != null ? serverInfo.getName() : "");
+
+                    // 获取描述
+                    String description = serverInfo.getDescription() != null
+                            ? serverInfo.getDescription()
+                            : "";
+
+                    // 构建完整的元数据
+                    Map<String, Object> toolMetadata = new HashMap<>();
+                    toolMetadata.put("id", serverId);
+                    toolMetadata.put("name", serverInfo.getName() != null ? serverInfo.getName() : "");
+                    toolMetadata.put("title", serverInfo.getTitle() != null ? serverInfo.getTitle() : "");
+                    toolMetadata.put("description", description);
+                    toolMetadata.put("author", serverInfo.getAuthor() != null ? serverInfo.getAuthor() : "");
+                    toolMetadata.put("icon", serverInfo.getIcon() != null ? serverInfo.getIcon() : "");
+                    toolMetadata.put("github_url", serverInfo.getGithubUrl() != null ? serverInfo.getGithubUrl() : "");
+                    toolMetadata.put("orderBy", serverInfo.getOrderBy() != null ? serverInfo.getOrderBy() : 0);
+                    toolMetadata.put("score", serverInfo.getScore() != null ? serverInfo.getScore() : "");
+                    if (serverInfo.getCategory() != null) {
+                        Map<String, Object> category = new HashMap<>();
+                        category.put("id", serverInfo.getCategory().getId());
+                        category.put("name", serverInfo.getCategory().getName());
+                        category.put("label", serverInfo.getCategory().getLabel());
+                        toolMetadata.put("category", category);
+                    }
+
+                    String metadataJson = objectMapper.writeValueAsString(toolMetadata);
+
+                    if (existingTool != null) {
+                        // 更新已存在的工具（保留加载状态）
+                        existingTool.setToolName(toolName);
+                        existingTool.setToolDescription(description);
+                        existingTool.setToolMetadata(metadataJson);
+                        // 不更新 isLoaded 和 localToolId，保留原有状态
+                        marketToolMapper.updateById(existingTool);
+                    } else {
+                        // 添加新工具
+                        McpMarketTool tool = McpMarketTool.builder()
+                                .marketId(marketId)
+                                .toolName(toolName)
+                                .toolDescription(description)
+                                .toolVersion(null) // API 响应中没有版本信息
+                                .toolMetadata(metadataJson)
+                                .isLoaded(false)
+                                .createTime(LocalDateTime.now())
+                                .build();
+                        marketToolMapper.insert(tool);
+                    }
+                }
+
+                // 判断是否还有更多数据
+                int currentPageSize = serverList.size();
+                if (currentPageSize < pageSize) {
+                    // 返回的数据少于每页大小，说明已经是最后一页了
                     hasMore = false;
+                } else {
+                    // 还有更多数据，继续请求下一页
+                    pageNumber++;
+                    // int waitSeconds = 3 + random.nextInt(3);
+                    // try {
+                    //     Thread.sleep(waitSeconds * 1000L);
+                    // } catch (InterruptedException e) {
+                    //     Thread.currentThread().interrupt();
+                    //     break;
+                    // }
                 }
             }
-
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("刷新市场工具列表失败", e);
         }
         return false;
     }
@@ -285,12 +282,25 @@ public class McpMarketServiceImpl extends ServiceImpl<McpMarketMapper, McpMarket
             McpToolService mcpToolService = applicationContext.getBean(McpToolService.class);
             McpToolData savedTool = mcpToolService.saveOrUpdateInfo(localTool);
 
+            // 自动注册到 Spring AI MCP 系统
+            try {
+                McpToolRegistryService registryService = applicationContext.getBean(McpToolRegistryService.class);
+                if (registryService.registerTool(savedTool)) {
+                    log.info("工具加载后自动注册成功: {}", savedTool.getName());
+                } else {
+                    log.warn("工具加载后自动注册失败: {}", savedTool.getName());
+                }
+            } catch (Exception e) {
+                log.error("工具加载后自动注册异常: {}", savedTool.getName(), e);
+                // 注册失败不影响工具加载，继续执行
+            }
+
             // 更新市场工具的加载状态
             marketToolMapper.updateLoadedStatus(marketToolId, true, savedTool.getId());
 
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("加载工具到本地失败", e);
             return false;
         }
     }
@@ -327,7 +337,7 @@ public class McpMarketServiceImpl extends ServiceImpl<McpMarketMapper, McpMarket
                 marketToolMapper.updateLoadedStatus(marketToolId, true, savedTool.getId());
                 successCount++;
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("批量加载工具失败: marketToolId={}", marketToolId, e);
                 // 继续处理下一个工具，不中断批量操作
             }
         }
