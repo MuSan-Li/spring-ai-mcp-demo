@@ -1,0 +1,43 @@
+spring:
+  # 数据源配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/spring_ai_demo?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+  ai:
+    deepseek:
+      api-key: sk-xx
+      # Spring AI 1.1.0 新特性配置
+      # 可以配置温度、最大token等参数
+      chat:
+        options:
+          temperature: 0.7
+          max-tokens: 2000
+    # MCP 客户端配置 - 连接到 mcp-service-demo
+    mcp:
+      client:
+        # MCP 服务器地址（mcp-service-demo 运行在 9899 端口）
+        server-url: http://127.0.0.1:9899
+
+# MyBatis Plus 配置
+mybatis-plus:
+  # Mapper XML 文件位置
+  mapper-locations: classpath:mapper/*.xml
+  # 实体类包路径
+  type-aliases-package: cn.sam.demo.mcpclient.entity
+  configuration:
+    # 开启驼峰命名转换
+    map-underscore-to-camel-case: true
+    # 日志实现
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 主键类型
+      id-type: auto
+      # 逻辑删除字段
+      logic-delete-field: deleted
+      # 逻辑删除值
+      logic-delete-value: 1
+      # 逻辑未删除值
+      logic-not-delete-value: 0

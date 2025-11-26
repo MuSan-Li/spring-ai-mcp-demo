@@ -1,0 +1,28 @@
+server:
+  port: 9899  # MCP 服务器端口
+
+spring:
+  application:
+    name: mcp-service-demo
+  # Spring AI MCP Server 配置
+  ai:
+    mcp:
+      server:
+        enabled: true
+        name: webmvc-mcp-server
+        version: 1.0.0
+#        type: SYNC
+#        annotation-scanner:
+#          enabled: true
+#        instructions: "This server provides weather information tools and resources"
+#        capabilities:
+#          tool: true
+#          resource: true
+#          prompt: true
+#          completion: true
+#        sse-message-endpoint: /mcp/messages
+#        keep-alive-interval: 30s
+#        streamable-http:
+#          mcp-endpoint: /mcp
+#        sse-endpoint: /sse
+#        protocol: streamable

@@ -1,0 +1,9 @@
+server:
+  port: 9898
+
+spring:
+  application:
+    name: mcp-client-demo
+  profiles:
+    active: dev
+

@@ -2,6 +2,11 @@ HELP.md
 target/
 .gitattributes
 *.md
+application-dev.*
+application-local.*
+application-test.*
+application-prod.*
+package-lock.json
 
 ### STS ###
 .apt_generated
@@ -36,3 +41,4 @@ build/
 src/main/resources/*.yml
 src/main/resources/*.yaml
 src/main/resources/*.properties
+*/target/
